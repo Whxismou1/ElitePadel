@@ -18,6 +18,7 @@ import { useSession } from "@/lib/store";
 export default function LoginPage() {
   const router = useRouter();
   const [, { login }] = useSession();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -28,39 +29,19 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 500));
-    const result = login(email.trim(), password);
+    const result = await login(email.trim(), password);
     setLoading(false);
     if (!result.ok) {
-      setError(result.error);
+      setError(result.error ?? "Error desconocido");
       return;
     }
     router.push("/home");
-  };
-
-  
-  const demoUsers = [
-    { label: "Admin (Alex)", email: "alex@elitepadel.app", password: "alex123" },
-    { label: "Player (Sarah)", email: "sarah@elitepadel.app", password: "sarah123" },
-    { label: "Player (Mike)", email: "mike@elitepadel.app", password: "mike123" },
-  ];
-
-  const quickLogin = async (u: { label: string; email: string; password: string }) => {
-    setError("");
-    setLoading(true);
-    setEmail(u.email);
-    setPassword(u.password);
-    await new Promise((r) => setTimeout(r, 400));
-    const result = login(u.email, u.password);
-    setLoading(false);
-    if (result.ok) router.push("/home");
   };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,#bbf7d0_0,#0f172a_55%,#020617_100%)] px-4 py-10 font-sans">
       <div className="mx-auto flex w-full max-w-5xl flex-col items-center justify-between gap-10 md:flex-row">
 
-        
         <div className="max-w-md text-center text-slate-50 md:text-left">
           <p className="text-xs font-semibold uppercase tracking-[0.25em] text-emerald-300">
             Elite padel
@@ -72,26 +53,8 @@ export default function LoginPage() {
           <p className="mt-4 text-sm text-slate-300">
             Crea ligas, agenda partidos y sigue las estadísticas de tus jugadores en un solo panel.
           </p>
-
-          
-          <div className="mt-8 flex flex-col gap-2">
-            <p className="text-xs font-semibold uppercase tracking-widest text-emerald-400 mb-1">
-              Acceso rápido (demo)
-            </p>
-            {demoUsers.map((u) => (
-              <button
-                key={u.email}
-                onClick={() => quickLogin(u)}
-                className="flex items-center justify-between rounded-xl border border-slate-700/60 bg-slate-900/50 px-4 py-2.5 text-left text-sm text-slate-200 backdrop-blur hover:border-emerald-500/50 hover:bg-slate-900/80 transition-colors"
-              >
-                <span className="font-medium">{u.label}</span>
-                <span className="text-[11px] text-slate-500">{u.email}</span>
-              </button>
-            ))}
-          </div>
         </div>
 
-        
         <Card className="w-full max-w-sm border-slate-800/60 bg-slate-950/70 text-slate-50 shadow-[0_18px_45px_rgba(15,23,42,0.85)] backdrop-blur-xl">
           <CardHeader className="border-b border-slate-800/60">
             <CardTitle className="text-lg font-semibold">Inicia sesión</CardTitle>
@@ -157,9 +120,6 @@ export default function LoginPage() {
               >
                 {loading ? "Entrando..." : "Entrar al dashboard"}
               </Button>
-              <p className="text-center text-[11px] text-slate-500">
-                Usa uno de los accesos rápidos de la izquierda para probar sin escribir.
-              </p>
             </CardFooter>
           </form>
         </Card>

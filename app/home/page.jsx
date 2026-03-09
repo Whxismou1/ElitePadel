@@ -21,6 +21,7 @@ import {
   usePastMatches,
   useUpcomingMatches,
   useCurrentUser,
+  useLeague,
 } from "@/lib/store";
 
 export default function Home() {
@@ -28,26 +29,27 @@ export default function Home() {
   const [upcomingMatches] = useUpcomingMatches();
   const [pastMatches] = usePastMatches();
   const currentUser = useCurrentUser();
+  const [league] = useLeague();
   const [fichaMatch, setFichaMatch] = useState(null);
 
   const recentResults = pastMatches.slice(0, 2);
 
   return (
     <div className="min-h-screen bg-[#F9FAFB] pb-32 font-sans">
-      
+
       <header className="px-6 pt-4 pb-6 md:flex md:justify-between md:items-center max-w-7xl mx-auto">
         <div className="mb-6 md:mb-0">
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-1">Panel de Liga</h1>
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-1">{league?.name || "Panel de Liga"}</h1>
           <p className="text-slate-500 font-medium">
-            ¡Hola {currentUser.fullname.split(" ")[0]}! ¿Listo para romperla hoy?
+            ¡Hola {currentUser?.fullname?.split(" ")[0]}! ¿Listo para romperla hoy?
           </p>
         </div>
       </header>
 
       <main className="px-6 flex flex-col gap-6 max-w-7xl mx-auto">
-        
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
+
           <Card className="lg:col-span-2 bg-white rounded-[24px] shadow-[0_2px_20px_-5px_rgba(0,0,0,0.05)] border border-slate-100">
             <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-slate-100">
               <div className="flex items-center gap-2">
@@ -103,110 +105,121 @@ export default function Home() {
             </div>
           </Card>
 
-          
+
           <Card className="bg-white rounded-[24px] shadow-[0_2px_20px_-5px_rgba(0,0,0,0.05)] border border-slate-100">
             <CardHeader className="pb-4">
               <CardTitle className="text-lg font-bold text-slate-800">Resultados recientes</CardTitle>
               <CardDescription>Tus últimos partidos jugados en la liga.</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-6">
-              {recentResults.map((match) => (
-                <div key={match.id} className="flex justify-between items-start gap-4">
-                  <div className="min-w-0">
-                    <p className="font-bold text-slate-800 text-sm truncate">
-                      {match.team1.join(" / ")}
-                    </p>
-                    <p className="text-xs text-slate-400 mt-0.5 truncate">
-                      vs {match.team2.join(" / ")}
-                    </p>
-                    <p className="text-[11px] text-slate-400 mt-1">{match.date} · {match.court}</p>
+              {recentResults.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-6 text-center">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-50 mb-3">
+                    <Trophy className="size-5 text-slate-300" />
                   </div>
-                  <div className="text-right shrink-0">
-                    {match.scores.map((set, i) => (
-                      <p key={i} className="font-bold text-slate-900 text-sm tracking-widest">{set}</p>
-                    ))}
-                  </div>
+                  <p className="text-sm font-medium text-slate-900">Aún no hay resultados</p>
+                  <p className="text-xs text-slate-500 mt-1 max-w-[200px]">Los últimos partidos aparecerán aquí.</p>
                 </div>
-              ))}
-              <Button asChild variant="outline" className="w-full mt-2 rounded-xl border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-                <Link href="/matches">Ver historial completo</Link>
-              </Button>
+              ) : (
+                <>
+                  {recentResults.map((match) => (
+                    <div key={match.id} className="flex justify-between items-start gap-4">
+                      <div className="min-w-0">
+                        <p className="font-bold text-slate-800 text-sm truncate">
+                          {match.team1.join(" / ")}
+                        </p>
+                        <p className="text-xs text-slate-400 mt-0.5 truncate">
+                          vs {match.team2.join(" / ")}
+                        </p>
+                        <p className="text-[11px] text-slate-400 mt-1">{match.date} · {match.court}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        {match.scores.map((set, i) => (
+                          <p key={i} className="font-bold text-slate-900 text-sm tracking-widest">{set}</p>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                  <Button asChild variant="outline" className="w-full mt-2 rounded-xl border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                    <Link href="/matches">Ver historial completo</Link>
+                  </Button>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
 
-        
+
         <h3 className="text-xl font-bold text-slate-900 mt-2">Próximos encuentros</h3>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 grid md:grid-cols-2 gap-4">
-            {upcomingMatches.map((match) => (
-              <div
-                key={match.id}
-                onClick={() => setFichaMatch(match)}
-                className="bg-white rounded-[24px] p-5 shadow-[0_2px_20px_-5px_rgba(0,0,0,0.05)] border border-slate-100 relative overflow-hidden group hover:border-[#13ec5b]/50 transition-colors cursor-pointer"
-              >
-                <div className="flex justify-between items-start mb-4">
-                  <Badge className={`${match.typeColor} border-0 font-bold text-[10px] uppercase tracking-wider`}>
-                    {match.type}
-                  </Badge>
-                  <MoreHorizontal className="size-4 text-slate-300" />
-                </div>
-                <div className="flex justify-center items-center gap-4 mb-4">
-                  <div className="text-center">
-                    <AvatarGroup className="-space-x-3 justify-center mb-1">
-                      <Avatar className="w-9 h-9 bg-slate-200 border-2 border-white">
-                        <AvatarFallback className="text-xs">{match.team1[0]?.[0]}</AvatarFallback>
-                      </Avatar>
-                      <Avatar className="w-9 h-9 bg-slate-300 border-2 border-white">
-                        <AvatarFallback className="text-xs">{match.team1[1]?.[0]}</AvatarFallback>
-                      </Avatar>
-                    </AvatarGroup>
-                    <p className="text-xs text-slate-600 font-medium">{match.team1.map(n => n.split(" ")[0]).join(" / ")}</p>
+        {upcomingMatches.length === 0 ? (
+          <Card className="bg-white rounded-[24px] shadow-[0_2px_20px_-5px_rgba(0,0,0,0.05)] border border-slate-100 p-8 text-center flex flex-col items-center justify-center min-h-[200px]">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-50 mb-4">
+              <Calendar className="size-6 text-slate-300" />
+            </div>
+            <h4 className="text-lg font-bold text-slate-900 mb-2">No hay próximos encuentros</h4>
+            <p className="text-sm text-slate-500 max-w-sm mx-auto mb-6">
+              Actualmente no hay partidos programados. ¡Organiza un nuevo partido desde la sección correspondiente!
+            </p>
+            <Button asChild className="rounded-full bg-[#13ec5b] text-slate-900 hover:bg-[#0eb846] font-semibold px-6">
+              <Link href="/matches">Ir a partidos</Link>
+            </Button>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 grid md:grid-cols-2 gap-4">
+              {upcomingMatches.map((match) => (
+                <div
+                  key={match.id}
+                  onClick={() => setFichaMatch(match)}
+                  className="bg-white rounded-[24px] p-5 shadow-[0_2px_20px_-5px_rgba(0,0,0,0.05)] border border-slate-100 relative overflow-hidden group hover:border-[#13ec5b]/50 transition-colors cursor-pointer"
+                >
+                  <div className="flex justify-between items-start mb-4">
+                    <Badge className={`${match.typeColor} border-0 font-bold text-[10px] uppercase tracking-wider`}>
+                      {match.type}
+                    </Badge>
+                    <MoreHorizontal className="size-4 text-slate-300" />
                   </div>
-                  <span className="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-full">VS</span>
-                  <div className="text-center">
-                    <AvatarGroup className="-space-x-3 justify-center mb-1">
-                      <Avatar className="w-9 h-9 bg-slate-200 border-2 border-white">
-                        <AvatarFallback className="text-xs">{match.team2[0]?.[0]}</AvatarFallback>
-                      </Avatar>
-                      <Avatar className="w-9 h-9 bg-slate-300 border-2 border-white">
-                        <AvatarFallback className="text-xs">{match.team2[1]?.[0]}</AvatarFallback>
-                      </Avatar>
-                    </AvatarGroup>
-                    <p className="text-xs text-slate-600 font-medium">{match.team2.map(n => n.split(" ")[0]).join(" / ")}</p>
+                  <div className="flex justify-center items-center gap-4 mb-4">
+                    <div className="text-center">
+                      <AvatarGroup className="-space-x-3 justify-center mb-1">
+                        <Avatar className="w-9 h-9 bg-slate-200 border-2 border-white">
+                          <AvatarFallback className="text-xs">{match.team1[0]?.[0]}</AvatarFallback>
+                        </Avatar>
+                        <Avatar className="w-9 h-9 bg-slate-300 border-2 border-white">
+                          <AvatarFallback className="text-xs">{match.team1[1]?.[0]}</AvatarFallback>
+                        </Avatar>
+                      </AvatarGroup>
+                      <p className="text-xs text-slate-600 font-medium">{match.team1.map(n => n.split(" ")[0]).join(" / ")}</p>
+                    </div>
+                    <span className="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-full">VS</span>
+                    <div className="text-center">
+                      <AvatarGroup className="-space-x-3 justify-center mb-1">
+                        <Avatar className="w-9 h-9 bg-slate-200 border-2 border-white">
+                          <AvatarFallback className="text-xs">{match.team2[0]?.[0]}</AvatarFallback>
+                        </Avatar>
+                        <Avatar className="w-9 h-9 bg-slate-300 border-2 border-white">
+                          <AvatarFallback className="text-xs">{match.team2[1]?.[0]}</AvatarFallback>
+                        </Avatar>
+                      </AvatarGroup>
+                      <p className="text-xs text-slate-600 font-medium">{match.team2.map(n => n.split(" ")[0]).join(" / ")}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                    <div className="flex items-center gap-2 text-slate-500">
+                      <Calendar className="size-4 shrink-0" />
+                      <span className="text-xs font-medium">{match.date} • {match.time}</span>
+                    </div>
+                    <span className="text-xs font-bold text-[#13ec5b] group-hover:translate-x-1 transition-transform">Ver ficha</span>
                   </div>
                 </div>
-                <div className="flex items-center justify-between pt-4 border-t border-slate-50">
-                  <div className="flex items-center gap-2 text-slate-500">
-                    <Calendar className="size-4 shrink-0" />
-                    <span className="text-xs font-medium">{match.date} • {match.time}</span>
-                  </div>
-                  <span className="text-xs font-bold text-[#13ec5b] group-hover:translate-x-1 transition-transform">Ver ficha</span>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          
-          <div className="rounded-[24px] bg-slate-900 p-6 relative overflow-hidden flex flex-col justify-end min-h-[200px] shadow-xl">
-            <div className="absolute inset-0 bg-gradient-to-t from-black via-slate-900/80 to-transparent z-10" />
-            <div className="absolute top-[-20%] right-[-20%] w-[150px] h-[150px] bg-[#13ec5b] rounded-full blur-[80px] opacity-40" />
-            <div className="relative z-20">
-              <span className="inline-block px-2 py-1 bg-[#13ec5b] text-slate-900 text-[10px] font-bold uppercase rounded-md mb-2">
-                Inscripción Abierta
-              </span>
-              <h3 className="text-xl font-bold text-white mb-1">Winter Cup 2024</h3>
-              <p className="text-slate-300 text-xs mb-4">Cierra en 2 días.</p>
-              <Link href="/tournaments" className="text-sm font-bold text-white border-b border-[#13ec5b] pb-0.5 w-max hover:text-[#13ec5b] transition-colors">
-                Registrar Pareja
-              </Link>
+              ))}
             </div>
           </div>
-        </div>
+        )}
       </main>
 
-      
+
       <Dialog open={!!fichaMatch} onOpenChange={(v) => { if (!v) setFichaMatch(null); }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
@@ -220,7 +233,7 @@ export default function Home() {
           </DialogHeader>
 
           <div className="mt-2 space-y-4">
-            
+
             <div className="flex items-center justify-center gap-3">
               <div className="text-center flex-1">
                 <AvatarGroup className="justify-center -space-x-2 mb-1.5">

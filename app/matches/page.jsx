@@ -14,18 +14,13 @@ import {
 } from "@/components/ui/dialog";
 import CreateMatchForm from "@/components/CreateMatchForm";
 import { usePlayers, useUpcomingMatches, usePastMatches, useCurrentUser } from "@/lib/store";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { createMatch, proposeResult as proposeResultAction, confirmResult as confirmResultAction } from "@/app/actions/matches";
 
-
-
-
-
-/**
- * Returns true if the match date string refers to a date in the past.
- * Accepts: "YYYY-MM-DD", "DD/MM/YYYY", or date-formatted strings.
- */
 function isDatePast(dateStr) {
   if (!dateStr || dateStr === "Sin fecha") return false;
-  
+
   const parsed = new Date(dateStr);
   if (!isNaN(parsed.getTime())) {
     const today = new Date();
@@ -35,15 +30,11 @@ function isDatePast(dateStr) {
   return false;
 }
 
-
 function userInTeam(team, user) {
   if (!user || !team) return false;
   const firstName = user.fullname.split(" ")[0].toLowerCase();
   return team.some((name) => name.toLowerCase().includes(firstName));
 }
-
-
-
 
 function ResultDialog({ match, onSave, triggerLabel, triggerVariant = "outline" }) {
   const [open, setOpen] = useState(false);
@@ -54,7 +45,7 @@ function ResultDialog({ match, onSave, triggerLabel, triggerVariant = "outline" 
   ]);
 
   const handleOpen = () => {
-    
+
     const existing = (match.scores ?? []).map((s) => s.split("-"));
     setScores([
       existing[0] ?? ["", ""],
@@ -123,7 +114,7 @@ function ResultDialog({ match, onSave, triggerLabel, triggerVariant = "outline" 
                   </tr>
                 </thead>
                 <tbody>
-                  
+
                   <tr className="border-b border-slate-100">
                     <td className="py-2 px-3 text-xs font-semibold text-slate-700 truncate max-w-[100px]">
                       {team1Short}
@@ -144,7 +135,7 @@ function ResultDialog({ match, onSave, triggerLabel, triggerVariant = "outline" 
                       );
                     })}
                   </tr>
-                  
+
                   <tr>
                     <td className="py-2 px-3 text-xs font-semibold text-slate-700 truncate max-w-[100px]">
                       {team2Short}
@@ -191,11 +182,6 @@ function ResultDialog({ match, onSave, triggerLabel, triggerVariant = "outline" 
   );
 }
 
-
-
-
-
-
 function PastMatchCard({ match, currentUser, onProposeResult, onConfirm }) {
   const inTeam1 = userInTeam(match.team1, currentUser);
   const inTeam2 = userInTeam(match.team2, currentUser);
@@ -206,9 +192,8 @@ function PastMatchCard({ match, currentUser, onProposeResult, onConfirm }) {
   const vs = match.validation?.status;
   const hasScores = match.scores?.length > 0;
 
-  
   const proposedByTeam1 = match.validation?.proposedBy === "team1";
-  
+
   const otherTeamShouldConfirm = proposedByTeam1 ? inTeam2 : inTeam1;
   const proposingTeamShouldEdit = proposedByTeam1 ? inTeam1 : inTeam2;
 
@@ -220,15 +205,14 @@ function PastMatchCard({ match, currentUser, onProposeResult, onConfirm }) {
         : "border-slate-100"
       }`}>
       <CardContent className="py-4">
-        
+
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0 flex-1">
-            
+
             <span className="text-sm font-semibold text-slate-800 truncate max-w-[120px]">
               {match.team1.join(" / ")}
             </span>
 
-            
             <div className="flex items-center gap-1.5 shrink-0">
               {hasScores ? (
                 match.scores.map((set, i) => (
@@ -244,13 +228,11 @@ function PastMatchCard({ match, currentUser, onProposeResult, onConfirm }) {
               )}
             </div>
 
-            
             <span className="text-sm font-semibold text-slate-800 truncate max-w-[120px]">
               {match.team2.join(" / ")}
             </span>
           </div>
 
-          
           <div className="flex items-center gap-3 text-xs text-slate-400 shrink-0">
             <span className="flex items-center gap-1">
               <Clock className="size-3.5" />{match.date}
@@ -261,7 +243,6 @@ function PastMatchCard({ match, currentUser, onProposeResult, onConfirm }) {
           </div>
         </div>
 
-        
         {!hasScores && !vs && (
           <div className="mt-3">
             {canInteract ? (
@@ -280,7 +261,6 @@ function PastMatchCard({ match, currentUser, onProposeResult, onConfirm }) {
           </div>
         )}
 
-        
         {vs === "validating" && (
           <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 space-y-2">
             <div className="flex items-start gap-2 text-xs text-amber-800">
@@ -288,7 +268,7 @@ function PastMatchCard({ match, currentUser, onProposeResult, onConfirm }) {
               <span>
                 Resultado propuesto por{" "}
                 <strong>{proposedByTeam1 ? match.team1.join(" / ") : match.team2.join(" / ")}</strong>.{" "}
-                
+
                 {proposingTeamShouldEdit && "Puedes editarlo si te equivocaste."}
                 {otherTeamShouldConfirm && "Confírmalo si es correcto, o edítalo si no lo es (se reiniciará la validación)."}
                 {isAdmin && !isParticipant && "Admin: puedes editar o confirmar."}
@@ -296,7 +276,7 @@ function PastMatchCard({ match, currentUser, onProposeResult, onConfirm }) {
             </div>
 
             <div className="flex flex-wrap gap-2">
-              
+
               {proposingTeamShouldEdit && (
                 <ResultDialog
                   match={match}
@@ -306,7 +286,6 @@ function PastMatchCard({ match, currentUser, onProposeResult, onConfirm }) {
                 />
               )}
 
-              
               {otherTeamShouldConfirm && (
                 <>
                   <ResultDialog
@@ -314,7 +293,7 @@ function PastMatchCard({ match, currentUser, onProposeResult, onConfirm }) {
                     triggerLabel="Proponer otro resultado"
                     triggerVariant="outline"
                     onSave={(scores) => {
-                      
+
                       const myTeam = inTeam1 ? "team1" : "team2";
                       onProposeResult(match.id, scores, myTeam);
                     }}
@@ -329,7 +308,6 @@ function PastMatchCard({ match, currentUser, onProposeResult, onConfirm }) {
                 </>
               )}
 
-              
               {isAdmin && !isParticipant && (
                 <>
                   <ResultDialog
@@ -348,7 +326,6 @@ function PastMatchCard({ match, currentUser, onProposeResult, onConfirm }) {
                 </>
               )}
 
-              
               {!canInteract && (
                 <div className="flex items-center gap-1 text-xs text-amber-700">
                   <Lock className="size-3.5" /> Solo participantes
@@ -358,7 +335,6 @@ function PastMatchCard({ match, currentUser, onProposeResult, onConfirm }) {
           </div>
         )}
 
-        
         {vs === "confirmed" && (
           <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
             <Check className="size-4" />
@@ -370,10 +346,6 @@ function PastMatchCard({ match, currentUser, onProposeResult, onConfirm }) {
   );
 }
 
-
-
-
-
 const tabs = [
   { id: "upcoming", label: "Próximos" },
   { id: "past", label: "Pasados" },
@@ -381,85 +353,56 @@ const tabs = [
 
 export default function MatchesPage() {
   const [players] = usePlayers();
-  const [upcomingMatches, setUpcomingMatches] = useUpcomingMatches();
-  const [pastMatches, setPastMatches] = usePastMatches();
+  const [upcomingMatches] = useUpcomingMatches();
+  const [pastMatches] = usePastMatches();
   const currentUser = useCurrentUser();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState("upcoming");
   const [fichaMatch, setFichaMatch] = useState(null);
+  const [saving, setSaving] = useState(false);
 
-  
-  const handleCreateMatch = (match) => {
-    const isPast = isDatePast(match.date);
-
-    if (isPast || match.result) {
-      
-      setPastMatches((prev) => {
-        const scores = match.result
-          ? match.result.map(([a, b]) => `${a}-${b}`)
-          : [];
-        const newMatch = {
-          id: match.id,
-          team1: match.teamA,
-          team2: match.teamB,
-          scores,
-          winner: null,
-          date: `${match.date}${match.time ? `, ${match.time}` : ""}`,
-          court: match.court,
-          validation: scores.length
-            ? { status: "validating", proposedBy: "team1", lastEditedBy: "team1" }
-            : null, 
-        };
-        if (prev.some((m) => m.id === newMatch.id)) return prev;
-        return [newMatch, ...prev];
-      });
-      setActiveTab("past");
-      return;
+  useEffect(() => {
+    if (!currentUser) {
+      router.push("/login");
     }
+  }, [currentUser, router]);
 
-    
-    setUpcomingMatches((prev) => {
-      const newMatch = {
-        id: match.id,
-        type: "Liga",
-        typeColor: "bg-purple-100 text-purple-600",
-        team1: match.teamA,
-        team2: match.teamB,
-        date: match.date,
-        time: match.time,
-        court: match.court,
-      };
-      if (prev.some((m) => m.id === newMatch.id)) return prev;
-      return [newMatch, ...prev];
+  if (!currentUser) return null;
+
+  const handleCreateMatch = async (match) => {
+    const isPast = isDatePast(match.date);
+    const scores = match.result ? match.result.map(([a, b]) => `${a}-${b}`) : [];
+    setSaving(true);
+    await createMatch({
+      teamA: match.teamA,
+      teamB: match.teamB,
+      type: "Liga",
+      typeColor: "bg-purple-100 text-purple-600",
+      date: match.date,
+      time: match.time,
+      court: match.court,
+      scores,
+      isPast: isPast || scores.length > 0,
     });
-    setActiveTab("upcoming");
+    setSaving(false);
+    setActiveTab(isPast || scores.length > 0 ? "past" : "upcoming");
+
   };
 
-  
-  const proposeResult = (id, scores, proposedBy) => {
-    setPastMatches((prev) =>
-      prev.map((m) =>
-        m.id !== id ? m : {
-          ...m,
-          scores,
-          validation: { status: "validating", proposedBy, lastEditedBy: proposedBy },
-        }
-      )
-    );
+  const proposeResult = async (id, scores, proposedBy) => {
+    await proposeResultAction(id, scores, proposedBy);
+
   };
 
-  const confirmResult = (id) => {
-    setPastMatches((prev) =>
-      prev.map((m) =>
-        m.id !== id ? m : { ...m, validation: { ...m.validation, status: "confirmed" } }
-      )
-    );
+  const confirmResult = async (id) => {
+    await confirmResultAction(id);
+
   };
 
-  
   const pendingForMe = useMemo(() => {
     return pastMatches.filter((m) => {
       if (m.validation?.status !== "validating") return false;
-      
+
       const inT1 = userInTeam(m.team1, currentUser);
       const inT2 = userInTeam(m.team2, currentUser);
       if (!inT1 && !inT2) return false;
@@ -478,10 +421,9 @@ export default function MatchesPage() {
       <div className="px-6 pt-6 pb-8 max-w-7xl mx-auto">
         <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-1">Matches</h1>
+            <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-1">Partidos</h1>
             <p className="text-slate-500 font-medium">Partidos próximos y pasados de la liga.</p>
 
-            
             <div className="flex flex-wrap gap-2 mt-3">
               {pendingForMe > 0 && (
                 <button
@@ -506,7 +448,6 @@ export default function MatchesPage() {
           <CreateMatchForm players={players} onCreate={handleCreateMatch} />
         </header>
 
-        
         <div className="flex gap-2 mb-6">
           {tabs.map((tab) => (
             <Button
@@ -525,7 +466,6 @@ export default function MatchesPage() {
           ))}
         </div>
 
-        
         {activeTab === "upcoming" && (
           <div className="space-y-4">
             <h2 className="text-lg font-semibold text-slate-800">Próximos partidos</h2>
@@ -590,7 +530,6 @@ export default function MatchesPage() {
           </div>
         )}
 
-        
         {activeTab === "past" && (
           <div className="space-y-4">
             <h2 className="text-lg font-semibold text-slate-800">Partidos pasados</h2>
@@ -617,7 +556,6 @@ export default function MatchesPage() {
         )}
       </div>
 
-      
       <Dialog open={!!fichaMatch} onOpenChange={(v) => { if (!v) setFichaMatch(null); }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>

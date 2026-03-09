@@ -13,28 +13,16 @@ import {
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import CreateTournamentForm from "@/components/CreateTournamentForm";
-import { usePlayers, useTournaments } from "@/lib/store";
+import { usePlayers, useTournaments, useLeague } from "@/lib/store";
 
 export default function TournamentsPage() {
-  const [players] = usePlayers();
-  const [tournaments, setTournaments] = useTournaments();
+  const [league] = useLeague();
+  const [players] = usePlayers(league?.id);
+  const [tournaments, , refetchTournaments] = useTournaments();
   const [createOpen, setCreateOpen] = useState(false);
 
-  const handleTournamentCreated = (tournament) => {
-    if (!tournament) return;
-    setTournaments((prev) => [
-      {
-        id: tournament.id,
-        name: tournament.name,
-        status: "Configuración inicial",
-        statusColor: "bg-slate-100 text-slate-700",
-        startDate: tournament.startDate,
-        endDate: tournament.endDate,
-        teams: Math.floor((tournament.participants?.length || 0) / 2),
-        maxTeams: tournament.maxTeams ?? 16,
-      },
-      ...prev,
-    ]);
+  const handleTournamentCreated = () => {
+    refetchTournaments();
   };
 
   return (
@@ -103,7 +91,7 @@ export default function TournamentsPage() {
                       <Users className="size-4 text-slate-400" />
                       {t.teams} / {t.maxTeams} parejas
                     </span>
-                    
+
                     <div className="flex-1 max-w-[120px]">
                       <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
                         <div

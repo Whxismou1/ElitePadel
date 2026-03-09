@@ -23,10 +23,6 @@ import {
 } from "@/components/ui/dialog";
 import { useTournaments } from "@/lib/store";
 
-
-
-
-
 function getNextPowerOf2(n) {
   if (n <= 2) return 2;
   if (n <= 4) return 4;
@@ -71,10 +67,6 @@ function roundLabel(roundIdx, totalRounds) {
   if (fromEnd === 2) return "Cuartos";
   return `Ronda ${roundIdx + 1}`;
 }
-
-
-
-
 
 function MatchCard({ match, matchKey, onUpdate, isFinal }) {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -261,12 +253,6 @@ function MatchCard({ match, matchKey, onUpdate, isFinal }) {
   );
 }
 
-
-
-
-
-
-
 const FALLBACK_TEAMS_8 = [
   "Navarro / Lebrón", "Ruiz / Stupa",
   "Tapia / Coello", "Chingotto / Tello",
@@ -342,7 +328,6 @@ export default function TournamentBracketPage() {
       return next;
     });
   };
-
 
   if (!initialized) return null;
 

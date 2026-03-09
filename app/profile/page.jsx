@@ -18,7 +18,8 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { useCurrentUser, usePastMatches } from "@/lib/store";
+import { useCurrentUser, usePastMatches, useLeague } from "@/lib/store";
+import { getSupabase } from "@/lib/supabase";
 import { useState } from "react";
 
 function initials(name) {
@@ -50,20 +51,48 @@ function PasswordInput({ id, value, onChange, placeholder }) {
   );
 }
 
-function ChangePasswordAccordion() {
+function ChangePasswordAccordion({ email }) {
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
   const [status, setStatus] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setStatus(null);
     setErrorMsg("");
     if (!current) { setStatus("error"); setErrorMsg("Introduce tu contraseña actual."); return; }
     if (next.length < 6) { setStatus("error"); setErrorMsg("Mínimo 6 caracteres."); return; }
     if (next !== confirm) { setStatus("error"); setErrorMsg("Las contraseñas no coinciden."); return; }
+
+    setLoading(true);
+    const supabase = getSupabase();
+
+    const { error: signError } = await supabase.auth.signInWithPassword({
+      email,
+      password: current,
+    });
+
+    if (signError) {
+      setLoading(false);
+      setStatus("error");
+      setErrorMsg("La contraseña actual es incorrecta.");
+      return;
+    }
+
+    const { error: updateError } = await supabase.auth.updateUser({
+      password: next,
+    });
+
+    setLoading(false);
+    if (updateError) {
+      setStatus("error");
+      setErrorMsg("Error al actualizar la contraseña.");
+      return;
+    }
+
     setStatus("success");
     setCurrent(""); setNext(""); setConfirm("");
   };
@@ -114,8 +143,8 @@ function ChangePasswordAccordion() {
               </div>
             )}
 
-            <Button type="submit" className="w-full rounded-full bg-slate-900 text-white hover:bg-slate-800 mt-2">
-              Actualizar contraseña
+            <Button type="submit" disabled={loading} className="w-full rounded-full bg-slate-900 text-white hover:bg-slate-800 mt-2">
+              {loading ? "Actualizando…" : "Actualizar contraseña"}
             </Button>
           </form>
         </AccordionContent>
@@ -127,15 +156,17 @@ function ChangePasswordAccordion() {
 export default function ProfilePage() {
   const currentUser = useCurrentUser();
   const [pastMatches] = usePastMatches();
+  const [league] = useLeague();
 
-  const winRate = currentUser.matches > 0 ? Math.round((currentUser.wins / currentUser.matches) * 100) : 0;
+  const winRate = currentUser?.matches > 0 ? Math.round((currentUser.wins / currentUser.matches) * 100) : 0;
 
-  
   const myMatches = pastMatches.filter((m) =>
     [...m.team1, ...m.team2].some((name) =>
-      name.toLowerCase().includes(currentUser.fullname.split(" ")[0].toLowerCase())
+      name.toLowerCase().includes(currentUser?.fullname?.split(" ")[0].toLowerCase())
     )
   ).slice(0, 5);
+
+  if (!currentUser) return null;
 
   return (
     <div className="min-h-screen bg-[#F9FAFB] pb-20 font-sans">
@@ -158,16 +189,16 @@ export default function ProfilePage() {
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-[1.4fr,1.6fr] gap-6 items-start">
-          
+
           <div className="space-y-5">
-            
+
             <Card className="rounded-2xl border-slate-100">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2">
                   <Trophy className="size-5 text-[#13ec5b]" />
                   Mis estadísticas
                 </CardTitle>
-                <CardDescription>Rendimiento en la liga Elite padel.</CardDescription>
+                <CardDescription>Rendimiento en <strong>{league?.name || "la liga actual"}</strong>.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3 text-sm text-slate-600">
                 <div className="flex justify-between">
@@ -189,15 +220,12 @@ export default function ProfilePage() {
                 <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
                   <div className="h-full bg-[#13ec5b]" style={{ width: `${winRate}%` }} />
                 </div>
-
               </CardContent>
             </Card>
 
-            
-            <ChangePasswordAccordion />
+            <ChangePasswordAccordion email={currentUser.email} />
           </div>
 
-          
           <Card className="rounded-2xl border-slate-100">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

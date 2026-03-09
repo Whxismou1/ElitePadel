@@ -11,10 +11,22 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useRanking } from "@/lib/store";
+import { useRanking, useCurrentUser } from "@/lib/store";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function PlayersPage() {
   const players = useRanking();
+  const currentUser = useCurrentUser();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!currentUser) {
+      router.push("/login");
+    }
+  }, [currentUser, router]);
+
+  if (!currentUser) return null;
 
   return (
     <div className="min-h-screen bg-[#F9FAFB] pb-20 font-sans">
@@ -90,7 +102,7 @@ export default function PlayersPage() {
                     <span className="text-xs text-slate-500">% Victorias</span>
                     <span className="text-sm font-semibold">{winRate}%</span>
                   </div>
-                  
+
                   <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
                     <div className="h-full bg-[#13ec5b] transition-all" style={{ width: `${winRate}%` }} />
                   </div>

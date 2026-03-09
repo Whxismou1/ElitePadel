@@ -17,11 +17,23 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
-import { useRanking, useLeague } from "@/lib/store";
+import { useRanking, useLeague, useCurrentUser } from "@/lib/store";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function LeaguesPage() {
   const ranking = useRanking();
   const [league] = useLeague();
+  const currentUser = useCurrentUser();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!currentUser) {
+      router.push("/login");
+    }
+  }, [currentUser, router]);
+
+  if (!currentUser) return null;
 
   return (
     <div className="min-h-screen bg-[#F9FAFB] pb-20 font-sans">
@@ -32,17 +44,17 @@ export default function LeaguesPage() {
               Detalles de la liga
             </h1>
             <p className="text-slate-500 font-medium">
-              {league.name} · {league.startDate} – {league.endDate}
+              {league?.name || "Cargando..."} · {league?.startDate} – {league?.endDate}
             </p>
           </div>
           <div className="flex flex-wrap gap-3 text-xs text-slate-600">
             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 font-medium text-emerald-700">
               <Users className="size-3.5" />
-              {league.totalPlayers} jugadores activos
+              {league?.totalPlayers || 0} jugadores activos
             </span>
             <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 font-medium">
               <Calendar className="size-3.5" />
-              {league.matchesPlayed} partidos jugados
+              {league?.matchesPlayed || 0} partidos jugados
             </span>
           </div>
         </header>
@@ -113,10 +125,6 @@ export default function LeaguesPage() {
               <p>
                 El ranking se calcula sumando todas las victorias de cada jugador,
                 independientemente de con quién haya jugado.
-              </p>
-              <p className="text-xs text-slate-500">
-                Más adelante podrás conectar esta vista con tus datos reales para
-                que el total de partidos y el ranking se actualicen automáticamente.
               </p>
             </CardContent>
           </Card>

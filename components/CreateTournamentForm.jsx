@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from "react";
 import { X, Users, Shuffle, Check, AlertCircle } from "lucide-react";
+import { createTournament } from "@/app/actions/tournaments";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -44,8 +45,8 @@ function ParticipantsPicker({ players, selectedIds, onChange, maxPlayers }) {
     if (!q) return players;
     return players.filter(
       (p) =>
-        p.username.toLowerCase().includes(q) ||
-        p.fullname.toLowerCase().includes(q)
+        (p.username || "").toLowerCase().includes(q) ||
+        (p.fullname || "").toLowerCase().includes(q)
     );
   }, [players, query]);
 
@@ -54,7 +55,7 @@ function ParticipantsPicker({ players, selectedIds, onChange, maxPlayers }) {
       onChange(selectedIds.filter((x) => x !== id));
       return;
     }
-    
+
     if (maxPlayers && selectedIds.length >= maxPlayers) return;
     onChange([...selectedIds, id]);
   };
@@ -111,21 +112,21 @@ function ParticipantsPicker({ players, selectedIds, onChange, maxPlayers }) {
                   onClick={() => toggle(p.id)}
                   disabled={disabled}
                   className={`flex items-center gap-3 rounded-xl border px-3 py-2 text-left transition-colors ${active
-                      ? "border-emerald-300 bg-emerald-50"
-                      : "border-slate-200 bg-white hover:bg-slate-50"
+                    ? "border-emerald-300 bg-emerald-50"
+                    : "border-slate-200 bg-white hover:bg-slate-50"
                     } ${disabled ? "opacity-40 cursor-not-allowed" : ""}`}
                 >
                   <Avatar className="bg-slate-200">
                     <AvatarFallback className="text-xs font-semibold text-slate-700">
-                      {initials(p.username)}
+                      {initials(p.username || p.fullname || "??")}
                     </AvatarFallback>
                   </Avatar>
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-semibold text-slate-900 truncate">
-                      @{p.username}
+                      @{p.username || "sin_usuario"}
                     </div>
                     <div className="text-[11px] text-slate-500 truncate">
-                      {p.fullname}
+                      {p.fullname || "Sin nombre"}
                     </div>
                   </div>
                   {active && (
@@ -161,8 +162,8 @@ export default function CreateTournamentForm({ open, onOpenChange, onSuccess, pl
   const [participantIds, setParticipantIds] = useState([]);
   const [pairingMode, setPairingMode] = useState("random");
   const [loading, setLoading] = useState(false);
+  const [serverError, setServerError] = useState("");
 
-  
   const maxPlayers = maxTeams && Number(maxTeams) > 0 ? Number(maxTeams) * 2 : null;
 
   const validationError = useMemo(() => {
@@ -184,39 +185,32 @@ export default function CreateTournamentForm({ open, onOpenChange, onSuccess, pl
     setPairingMode("random");
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (validationError) return;
     setLoading(true);
-
-    const id =
-      crypto?.randomUUID?.() ??
-      `t_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+    setServerError("");
 
     const participants = participantIds
       .map((pid) => players.find((p) => p.id === pid))
       .filter(Boolean);
 
-    const tournament = {
-      id,
+    const res = await createTournament({
       name,
       startDate,
       endDate,
-      maxTeams: maxTeams ? Number(maxTeams) : null,
-      participants,
-      pairingMode,
-    };
+      maxTeams: maxTeams ? Number(maxTeams) : 16,
+      teams: Math.floor(participants.length / 2),
+      status: "Próximamente",
+      statusColor: "bg-amber-100 text-amber-700",
+    });
 
-    try {
-      localStorage.setItem(`tournament:${id}:config`, JSON.stringify(tournament));
-    } catch { }
+    setLoading(false);
+    if (!res.ok) { setServerError(res.error); return; }
 
-    setTimeout(() => {
-      setLoading(false);
-      onSuccess?.(tournament);
-      onOpenChange?.(false);
-      reset();
-    }, 800);
+    onSuccess?.({ id: res.id, name, startDate, endDate, participants, pairingMode });
+    onOpenChange?.(false);
+    reset();
   };
 
   return (
@@ -225,12 +219,12 @@ export default function CreateTournamentForm({ open, onOpenChange, onSuccess, pl
         <DialogHeader>
           <DialogTitle>Crear torneo</DialogTitle>
           <DialogDescription>
-            Rellena los datos del nuevo torneo. Podrás configurar fases después.
+            Rellena los datos del nuevo torneo. Podrás configurar fases después. (Total jugadores disponibles: {players.length})
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
-          
+
           <ParticipantsPicker
             players={players}
             selectedIds={participantIds}
@@ -238,7 +232,13 @@ export default function CreateTournamentForm({ open, onOpenChange, onSuccess, pl
             maxPlayers={maxPlayers}
           />
 
-          
+          {players.length === 0 && (
+            <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+              <AlertCircle className="size-4 shrink-0" />
+              Todavía no hay jugadores en esta liga. Añádelos desde la pestaña 'Jugadores' o 'Liga'.
+            </div>
+          )}
+
           {participantIds.length > 0 && validationError && (
             <div className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
               <AlertCircle className="size-4 shrink-0" />
@@ -252,7 +252,6 @@ export default function CreateTournamentForm({ open, onOpenChange, onSuccess, pl
             </div>
           )}
 
-          
           <div className="rounded-2xl border border-slate-200 bg-white p-4">
             <p className="text-sm font-semibold text-slate-900">Parejas</p>
             <p className="text-xs text-slate-500 mt-0.5">
@@ -295,7 +294,7 @@ export default function CreateTournamentForm({ open, onOpenChange, onSuccess, pl
                   return (
                     <Avatar key={pid} className="bg-slate-200">
                       <AvatarFallback className="text-[10px] font-semibold text-slate-700">
-                        {initials(p.username)}
+                        {initials(p.username || p.fullname || "?")}
                       </AvatarFallback>
                     </Avatar>
                   );
@@ -304,7 +303,6 @@ export default function CreateTournamentForm({ open, onOpenChange, onSuccess, pl
             </div>
           </div>
 
-          
           <div className="space-y-2">
             <label htmlFor="tournament-name" className="text-sm font-medium text-slate-700">
               Nombre del torneo
@@ -319,7 +317,6 @@ export default function CreateTournamentForm({ open, onOpenChange, onSuccess, pl
             />
           </div>
 
-          
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label htmlFor="start-date" className="text-sm font-medium text-slate-700">
@@ -349,7 +346,6 @@ export default function CreateTournamentForm({ open, onOpenChange, onSuccess, pl
             </div>
           </div>
 
-          
           <div className="space-y-2">
             <label htmlFor="max-teams" className="text-sm font-medium text-slate-700">
               Máximo de parejas (opcional)
@@ -371,7 +367,13 @@ export default function CreateTournamentForm({ open, onOpenChange, onSuccess, pl
             )}
           </div>
 
-          
+          {serverError && (
+            <div className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+              <AlertCircle className="size-4 shrink-0" />
+              {serverError}
+            </div>
+          )}
+
           <div className="flex gap-2 pt-2">
             <Button
               type="button"
