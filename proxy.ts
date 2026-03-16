@@ -4,7 +4,7 @@ import type { NextRequest } from "next/server";
 
 const PUBLIC_ROUTES = ["/"];
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
     const res = NextResponse.next();
     const { pathname } = req.nextUrl;
 
@@ -45,7 +45,8 @@ export const config = {
          * Match all routes EXCEPT:
          *  - /  (login page)
          *  - /_next/static, /_next/image, /favicon.ico, /api/*
+         *  - PWA assets: /sw.js, /manifest.json, /icons/*
          */
-        "/((?!_next/static|_next/image|favicon.ico|api/).*)",
+        "/((?!_next/static|_next/image|favicon.ico|api/|sw.js|manifest.json|icons/).*)",
     ],
 };

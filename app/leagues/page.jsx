@@ -29,11 +29,9 @@ export default function LeaguesPage() {
   const router = useRouter();
 
   useEffect(() => {
-    console.log("Current User:", currentUser);
     if (currentUser === null) {
       router.push("/");
     }
-    console.log("League Data:", league);
 
   }, [currentUser, router]);
 
