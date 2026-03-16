@@ -195,14 +195,87 @@ export default function CreateTournamentForm({ open, onOpenChange, onSuccess, pl
       .map((pid) => players.find((p) => p.id === pid))
       .filter(Boolean);
 
+    
+    let bracket = [];
+    const size = maxPlayers ? maxPlayers / 2 : 2 ** Math.ceil(Math.log2(Math.max(participants.length / 2, 2)));
+
+    if (pairingMode === "random") {
+      const shuffled = [...participants].sort(() => Math.random() - 0.5);
+      const names = shuffled.map(p => `@${p.username || p.fullname}`);
+      
+      const createdTeams = [];
+      for (let i = 0; i < names.length; i += 2) {
+          if (names[i + 1]) {
+              createdTeams.push(`${names[i]} / ${names[i+1]}`);
+          }
+      }
+
+      while (createdTeams.length < size) createdTeams.push("BYE");
+
+      const r1 = [];
+      for (let i = 0; i < size; i += 2) {
+        const isBye = createdTeams[i] === "BYE" || createdTeams[i + 1] === "BYE";
+        r1.push({ 
+          a: createdTeams[i], 
+          b: createdTeams[i + 1], 
+          scoreA: "", 
+          scoreB: "", 
+          scores: [], 
+          validation: isBye ? { status: "confirmed", proposedBy: "system" } : null 
+        });
+      }
+      bracket = { rounds: [r1] };
+      let curr = r1.length;
+      while (curr > 1) {
+        curr = Math.ceil(curr / 2);
+        bracket.rounds.push(Array.from({ length: curr }, () => ({ a: "TBD", b: "TBD", scoreA: "", scoreB: "", scores: [], validation: null })));
+      }
+      
+      
+      if (bracket.rounds[1]) {
+        for (let i = 0; i < r1.length; i++) {
+          const m = r1[i];
+          if (m.validation?.status === "confirmed") {
+            const winner = m.a === "BYE" ? m.b : m.a;
+            const nextMatchIdx = Math.floor(i / 2);
+            const slot = i % 2 === 0 ? "a" : "b";
+            bracket.rounds[1][nextMatchIdx][slot] = winner;
+          }
+        }
+      }
+    } else {
+      
+      const r1 = [];
+      for (let i = 0; i < size; i += 2) {
+        r1.push({ a: "TBD / TBD", b: "TBD / TBD", scoreA: "", scoreB: "", scores: [], validation: null });
+      }
+      bracket = { rounds: [r1], participants: participants.map(p => `@${p.username || p.fullname}`) };
+      let curr = r1.length;
+      while (curr > 1) {
+        curr = Math.ceil(curr / 2);
+        bracket.rounds.push(Array.from({ length: curr }, () => ({ a: "TBD", b: "TBD", scoreA: "", scoreB: "", scores: [], validation: null })));
+      }
+    }
+
+    const today = new Date().toISOString().split("T")[0];
+    let status = "Próximamente";
+    let statusColor = "bg-amber-100 text-amber-700";
+
+    
+    if (!startDate || startDate <= today) {
+      status = "En curso";
+      statusColor = "bg-emerald-100 text-emerald-700";
+    }
+
     const res = await createTournament({
       name,
       startDate,
       endDate,
       maxTeams: maxTeams ? Number(maxTeams) : 16,
       teams: Math.floor(participants.length / 2),
-      status: "Próximamente",
-      statusColor: "bg-amber-100 text-amber-700",
+      status,
+      statusColor,
+      bracket,
     });
 
     setLoading(false);
@@ -320,27 +393,25 @@ export default function CreateTournamentForm({ open, onOpenChange, onSuccess, pl
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label htmlFor="start-date" className="text-sm font-medium text-slate-700">
-                Fecha inicio
+                Fecha inicio (opcional)
               </label>
               <Input
                 id="start-date"
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                required
                 className="rounded-lg"
               />
             </div>
             <div className="space-y-2">
               <label htmlFor="end-date" className="text-sm font-medium text-slate-700">
-                Fecha fin
+                Fecha fin (opcional)
               </label>
               <Input
                 id="end-date"
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                required
                 className="rounded-lg"
               />
             </div>
@@ -385,7 +456,7 @@ export default function CreateTournamentForm({ open, onOpenChange, onSuccess, pl
             </Button>
             <Button
               type="submit"
-              disabled={loading || !!validationError || !name || !startDate || !endDate}
+              disabled={loading || !!validationError || !name}
               className="flex-1 bg-[#13ec5b] text-slate-900 hover:bg-[#0eb846]"
             >
               {loading ? "Creando…" : "Crear torneo"}

@@ -21,8 +21,8 @@ export default function PlayersPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!currentUser) {
-      router.push("/login");
+    if (currentUser === null) {
+      router.push("/");
     }
   }, [currentUser, router]);
 

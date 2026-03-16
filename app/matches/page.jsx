@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState } from "react";
 import {
-  Calendar, Clock, MapPin, ShieldCheck, Check, PlusCircle, Pencil, Lock
+  Calendar, Clock, MapPin, ShieldCheck, Check, PlusCircle, Pencil, Lock, Trash2, AlertTriangle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,30 +10,52 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger
 } from "@/components/ui/dialog";
 import CreateMatchForm from "@/components/CreateMatchForm";
-import { usePlayers, useUpcomingMatches, usePastMatches, useCurrentUser } from "@/lib/store";
+import { usePlayers, useUpcomingMatches, usePastMatches, useCurrentUser, useLeague } from "@/lib/store";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { createMatch, proposeResult as proposeResultAction, confirmResult as confirmResultAction } from "@/app/actions/matches";
+import { createMatch, proposeResult as proposeResultAction, confirmResult as confirmResultAction, deleteMatch } from "@/app/actions/matches";
 
-function isDatePast(dateStr) {
+function isMatchOver(dateStr, timeStr) {
   if (!dateStr || dateStr === "Sin fecha") return false;
+  const [year, month, day] = dateStr.split("-").map(Number);
+  let hours = 0, minutes = 0;
+  if (timeStr && timeStr !== "Sin hora") {
+    [hours, minutes] = timeStr.split(":").map(Number);
+  }
+  const matchDate = new Date(year, month - 1, day, hours, minutes);
+  const now = new Date();
+  return now >= matchDate;
+}
 
-  const parsed = new Date(dateStr);
-  if (!isNaN(parsed.getTime())) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return parsed < today;
+function isDatePast(dateStr, timeStr) {
+  if (!dateStr || dateStr === "Sin fecha") return false;
+  
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const matchDay = new Date(y, m - 1, d);
+  
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (matchDay < today) return true;
+  if (matchDay.getTime() === today.getTime()) {
+    return isMatchOver(dateStr, timeStr);
   }
   return false;
 }
 
-function userInTeam(team, user) {
-  if (!user || !team) return false;
-  const firstName = user.fullname.split(" ")[0].toLowerCase();
-  return team.some((name) => name.toLowerCase().includes(firstName));
+function userInTeam(match, teamNum, user) {
+  if (!user) return false;
+  const ids = teamNum === 1 ? match.team1Ids : match.team2Ids;
+  if (ids && ids.length > 0) {
+    return ids.includes(user.id);
+  }
+  
+  const names = teamNum === 1 ? match.team1 : match.team2;
+  const first = user.fullname.split(" ")[0].toLowerCase();
+  return names.some(n => n.toLowerCase().includes(first));
 }
 
 function ResultDialog({ match, onSave, triggerLabel, triggerVariant = "outline" }) {
@@ -182,9 +204,55 @@ function ResultDialog({ match, onSave, triggerLabel, triggerVariant = "outline" 
   );
 }
 
-function PastMatchCard({ match, currentUser, onProposeResult, onConfirm }) {
-  const inTeam1 = userInTeam(match.team1, currentUser);
-  const inTeam2 = userInTeam(match.team2, currentUser);
+function DeleteMatchDialog({ matchId, onDelete }) {
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const handleDelete = async () => {
+    setLoading(true);
+    await onDelete(matchId);
+    setLoading(false);
+    setOpen(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50">
+          <Trash2 className="size-4" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-600">
+            <AlertTriangle className="size-6" />
+          </div>
+          <DialogTitle className="text-center">¿Eliminar partido?</DialogTitle>
+          <DialogDescription className="text-center">
+            Esta acción no se puede deshacer. Si el partido ya estaba confirmado, las estadísticas de los jugadores se revertirán automáticamente.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="mt-4 flex flex-col sm:flex-row gap-2">
+          <Button variant="outline" className="rounded-full flex-1" onClick={() => setOpen(false)}>
+            Cancelar
+          </Button>
+          <Button 
+            variant="destructive" 
+            className="rounded-full flex-1 bg-red-600 hover:bg-red-700" 
+            onClick={handleDelete}
+            disabled={loading}
+          >
+            {loading ? "Eliminando..." : "Eliminar partido"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function PastMatchCard({ match, currentUser, onProposeResult, onConfirm, onDelete }) {
+  const inTeam1 = userInTeam(match, 1, currentUser);
+  const inTeam2 = userInTeam(match, 2, currentUser);
   const isParticipant = inTeam1 || inTeam2;
   const isAdmin = currentUser?.role === "admin";
   const canInteract = isParticipant || isAdmin;
@@ -192,7 +260,7 @@ function PastMatchCard({ match, currentUser, onProposeResult, onConfirm }) {
   const vs = match.validation?.status;
   const hasScores = match.scores?.length > 0;
 
-  const proposedByTeam1 = match.validation?.proposedBy === "team1";
+  const proposedByTeam1 = match.validation?.proposedBy === "team1" || match.validation?.proposedBy === "teamA";
 
   const otherTeamShouldConfirm = proposedByTeam1 ? inTeam2 : inTeam1;
   const proposingTeamShouldEdit = proposedByTeam1 ? inTeam1 : inTeam2;
@@ -240,18 +308,28 @@ function PastMatchCard({ match, currentUser, onProposeResult, onConfirm }) {
             <span className="flex items-center gap-1">
               <MapPin className="size-3.5" />{match.court}
             </span>
+            {canInteract && (
+              <DeleteMatchDialog matchId={match.id} onDelete={onDelete} />
+            )}
           </div>
         </div>
 
         {!hasScores && !vs && (
           <div className="mt-3">
             {canInteract ? (
-              <ResultDialog
-                match={match}
-                triggerLabel="Añadir resultado"
-                triggerVariant="default"
-                onSave={(scores) => onProposeResult(match.id, scores, inTeam1 ? "team1" : "team2")}
-              />
+              (isMatchOver(match.date, match.time) || isAdmin) ? (
+                <ResultDialog
+                  match={match}
+                  triggerLabel="Añadir resultado"
+                  triggerVariant="default"
+                  onSave={(scores) => onProposeResult(match.id, scores, inTeam1 ? "team1" : "team2")}
+                />
+              ) : (
+                <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                  <Clock className="size-3.5" />
+                  El resultado se podrá añadir tras la hora del partido.
+                </div>
+              )
             ) : (
               <div className="flex items-center gap-1.5 text-xs text-slate-400">
                 <Lock className="size-3.5" />
@@ -280,7 +358,7 @@ function PastMatchCard({ match, currentUser, onProposeResult, onConfirm }) {
               {proposingTeamShouldEdit && (
                 <ResultDialog
                   match={match}
-                  triggerLabel="Editar mi propuesta"
+                  triggerLabel="Corregir propuesta"
                   triggerVariant="outline"
                   onSave={(scores) => onProposeResult(match.id, scores, inTeam1 ? "team1" : "team2")}
                 />
@@ -290,7 +368,7 @@ function PastMatchCard({ match, currentUser, onProposeResult, onConfirm }) {
                 <>
                   <ResultDialog
                     match={match}
-                    triggerLabel="Proponer otro resultado"
+                    triggerLabel="Editar y contra-proponer"
                     triggerVariant="outline"
                     onSave={(scores) => {
 
@@ -352,7 +430,8 @@ const tabs = [
 ];
 
 export default function MatchesPage() {
-  const [players] = usePlayers();
+  const [league] = useLeague();
+  const [players] = usePlayers(league?.id);
   const [upcomingMatches] = useUpcomingMatches();
   const [pastMatches] = usePastMatches();
   const currentUser = useCurrentUser();
@@ -362,52 +441,21 @@ export default function MatchesPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!currentUser) {
-      router.push("/login");
+    if (currentUser === null) {
+      router.push("/");
     }
   }, [currentUser, router]);
-
-  if (!currentUser) return null;
-
-  const handleCreateMatch = async (match) => {
-    const isPast = isDatePast(match.date);
-    const scores = match.result ? match.result.map(([a, b]) => `${a}-${b}`) : [];
-    setSaving(true);
-    await createMatch({
-      teamA: match.teamA,
-      teamB: match.teamB,
-      type: "Liga",
-      typeColor: "bg-purple-100 text-purple-600",
-      date: match.date,
-      time: match.time,
-      court: match.court,
-      scores,
-      isPast: isPast || scores.length > 0,
-    });
-    setSaving(false);
-    setActiveTab(isPast || scores.length > 0 ? "past" : "upcoming");
-
-  };
-
-  const proposeResult = async (id, scores, proposedBy) => {
-    await proposeResultAction(id, scores, proposedBy);
-
-  };
-
-  const confirmResult = async (id) => {
-    await confirmResultAction(id);
-
-  };
-
   const pendingForMe = useMemo(() => {
+    if (!currentUser) return 0;
     return pastMatches.filter((m) => {
       if (m.validation?.status !== "validating") return false;
 
-      const inT1 = userInTeam(m.team1, currentUser);
-      const inT2 = userInTeam(m.team2, currentUser);
+      const inT1 = userInTeam(m, 1, currentUser);
+      const inT2 = userInTeam(m, 2, currentUser);
       if (!inT1 && !inT2) return false;
       const proposer = m.validation?.proposedBy;
-      return (proposer === "team1" && inT2) || (proposer === "team2" && inT1);
+      const isProposerT1 = proposer === "team1" || proposer === "teamA";
+      return (isProposerT1 && inT2) || (!isProposerT1 && inT1);
     }).length;
   }, [pastMatches, currentUser]);
 
@@ -415,6 +463,46 @@ export default function MatchesPage() {
     () => pastMatches.filter((m) => !m.scores?.length && !m.validation?.status).length,
     [pastMatches]
   );
+
+  if (!currentUser) return null;
+
+  const handleCreateMatch = async (match) => {
+    const isPast = isDatePast(match.date, match.time);
+    const scores = match.result ? match.result.map(([a, b]) => `${a}-${b}`) : [];
+    setSaving(true);
+    await createMatch({
+      teamA: match.teamA,
+      teamB: match.teamB,
+      teamAIds: match.teamAIds,
+      teamBIds: match.teamBIds,
+      type: "Liga",
+      typeColor: "bg-purple-100 text-purple-600",
+      date: match.date,
+      time: match.time,
+      court: match.court,
+      scores,
+      isPast: isPast || scores.length > 0,
+      leagueId: league?.id,
+    });
+    setSaving(false);
+    setActiveTab(isPast || scores.length > 0 ? "past" : "upcoming");
+
+  };
+
+  const proposeResult = async (id, scores, proposedBy) => {
+    const res = await proposeResultAction(id, scores, proposedBy);
+    if (res && !res.ok) alert("Error: " + res.error);
+  };
+
+  const confirmResult = async (id) => {
+    const res = await confirmResultAction(id);
+    if (res && !res.ok) alert("Error: " + res.error);
+  };
+
+  const handleDeleteMatch = async (id) => {
+    await deleteMatch(id);
+  };
+
 
   return (
     <div className="min-h-screen bg-[#F9FAFB] pb-20 font-sans">
@@ -477,12 +565,22 @@ export default function MatchesPage() {
               </Card>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {upcomingMatches.map((match) => (
-                  <Card key={match.id} className="rounded-2xl border-slate-100 hover:border-[#13ec5b]/50 transition-colors">
-                    <CardContent className="pt-6">
-                      <Badge className={`${match.typeColor} border-0 font-bold text-[10px] uppercase tracking-wider`}>
-                        {match.type}
-                      </Badge>
+                {upcomingMatches.map((match) => {
+                  const inT1 = userInTeam(match, 1, currentUser);
+                  const inT2 = userInTeam(match, 2, currentUser);
+                  const canDel = inT1 || inT2 || currentUser?.role === "admin";
+                  return (
+                    <Card key={match.id} className="rounded-2xl border-slate-100 hover:border-[#13ec5b]/50 transition-colors">
+                      <CardContent className="pt-6">
+                        <div className="flex items-start justify-between">
+                          <Badge className={`${match.typeColor} border-0 font-bold text-[10px] uppercase tracking-wider`}>
+                            {match.type}
+                          </Badge>
+                          {canDel && (
+                            <DeleteMatchDialog matchId={match.id} onDelete={handleDeleteMatch} />
+                          )}
+                        </div>
+
                       <div className="flex items-center justify-center gap-4 my-5">
                         <div className="text-center">
                           <AvatarGroup className="justify-center -space-x-2 mb-1">
@@ -523,8 +621,9 @@ export default function MatchesPage() {
                         >Ver ficha</button>
                       </div>
                     </CardContent>
-                  </Card>
-                ))}
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -548,6 +647,7 @@ export default function MatchesPage() {
                     currentUser={currentUser}
                     onProposeResult={proposeResult}
                     onConfirm={confirmResult}
+                    onDelete={handleDeleteMatch}
                   />
                 ))}
               </div>

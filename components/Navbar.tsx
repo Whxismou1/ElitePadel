@@ -65,7 +65,7 @@ export default function Navbar() {
     return null;
   }
 
-  const userInitials = initials(currentUser.fullname);
+  const userInitials = currentUser ? initials(currentUser.fullname) : "U";
 
   return (
     <header
@@ -126,7 +126,7 @@ export default function Navbar() {
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-64 p-0 overflow-hidden rounded-2xl border border-slate-200 shadow-xl shadow-slate-200/60">
-            
+
             <div className="bg-gradient-to-br from-slate-900 to-slate-700 px-4 py-4">
               <div className="flex items-center gap-3">
                 <div className="relative">
@@ -136,8 +136,8 @@ export default function Navbar() {
                   <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-slate-800 bg-[#13ec5b]" />
                 </div>
                 <div className="flex flex-col min-w-0">
-                  <span className="font-semibold text-white text-sm truncate">{currentUser.fullname}</span>
-                  <span className="text-[11px] text-slate-400 truncate">{currentUser.email}</span>
+                  <span className="font-semibold text-white text-sm truncate">{currentUser?.fullname ?? "Usuario"}</span>
+                  <span className="text-[11px] text-slate-400 truncate">{currentUser?.email ?? ""}</span>
                   {isAdmin && (
                     <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-purple-500/20 border border-purple-400/30 px-2 py-0.5 text-[10px] font-semibold text-purple-300 w-fit">
                       <Shield className="size-2.5" /> Admin
@@ -147,7 +147,7 @@ export default function Navbar() {
               </div>
             </div>
 
-            
+
             <div className="p-1.5">
               <DropdownMenuItem
                 onClick={() => router.push("/profile")}

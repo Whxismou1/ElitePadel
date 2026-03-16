@@ -80,7 +80,7 @@ export default function TournamentsPage() {
                     <CardTitle className="text-lg truncate">{t.name}</CardTitle>
                     <CardDescription className="flex items-center gap-2 mt-1">
                       <Calendar className="size-3.5 shrink-0" />
-                      {t.startDate} – {t.endDate}
+                      {t.startDate ? `${t.startDate} – ${t.endDate || "Sin fin"}` : "Sin fecha definida"}
                     </CardDescription>
                   </div>
                   <Badge className={`shrink-0 ${t.statusColor} border-0`}>{t.status}</Badge>

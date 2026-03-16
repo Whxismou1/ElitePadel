@@ -17,20 +17,24 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
-import { useRanking, useLeague, useCurrentUser } from "@/lib/store";
+import { useRanking, useLeague, useCurrentUser, usePastMatches } from "@/lib/store";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 export default function LeaguesPage() {
   const ranking = useRanking();
   const [league] = useLeague();
+  const [pastMatches] = usePastMatches();
   const currentUser = useCurrentUser();
   const router = useRouter();
 
   useEffect(() => {
-    if (!currentUser) {
-      router.push("/login");
+    console.log("Current User:", currentUser);
+    if (currentUser === null) {
+      router.push("/");
     }
+    console.log("League Data:", league);
+
   }, [currentUser, router]);
 
   if (!currentUser) return null;
@@ -50,11 +54,11 @@ export default function LeaguesPage() {
           <div className="flex flex-wrap gap-3 text-xs text-slate-600">
             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 font-medium text-emerald-700">
               <Users className="size-3.5" />
-              {league?.totalPlayers || 0} jugadores activos
+              {ranking.length} jugadores activos
             </span>
             <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 font-medium">
               <Calendar className="size-3.5" />
-              {league?.matchesPlayed || 0} partidos jugados
+              {pastMatches.length} partidos jugados
             </span>
           </div>
         </header>

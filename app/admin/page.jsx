@@ -27,6 +27,7 @@ import { Shield } from "lucide-react";
 import { Users } from "lucide-react";
 import { BarChart3 } from "lucide-react";
 import { Trophy } from "lucide-react";
+import { Calendar } from "lucide-react";
 
 function initials(name) {
     return name.split(" ").filter(Boolean).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
@@ -654,6 +655,7 @@ function LeagueTab() {
 
 
 function TournamentsTab() {
+    const router = useRouter();
     const [league] = useLeague();
     const [tournaments, , refetchTournaments] = useTournaments();
     const [players] = usePlayers(league?.id);

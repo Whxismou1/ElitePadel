@@ -212,9 +212,11 @@ export default function CreateMatchForm({ players, onCreate }) {
       time: time || "Sin hora",
       teamA: teamALabel,
       teamB: teamBLabel,
+      teamAIds: teamA,
+      teamBIds: teamB,
       result: resultSets.length ? resultSets : null,
       status: resultSets.length ? "validating" : "scheduled",
-      proposedBy: resultSets.length ? "teamA" : null,
+      proposedBy: resultSets.length ? "team1" : null,
     };
 
     onCreate(match);

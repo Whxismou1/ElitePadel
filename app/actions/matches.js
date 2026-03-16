@@ -5,7 +5,8 @@ import { revalidatePath } from "next/cache";
 
 
 export async function createMatch(match) {
-    const admin = getSupabaseAdmin();
+    const admin = getSupabaseAdmin();
+
     let leagueId = match.leagueId;
     if (!leagueId) {
         const { data: activeLeague } = await admin.from("leagues").select("id").eq("is_active", true).single();
@@ -52,7 +53,8 @@ export async function proposeResult(matchId, scores, proposedBy) {
 
 
 export async function confirmResult(matchId) {
-    const admin = getSupabaseAdmin();
+    const admin = getSupabaseAdmin();
+
     const { data: match, error: readError } = await admin
         .from("matches")
         .select("validation, team1_ids, team2_ids, scores, league_id")
@@ -60,7 +62,15 @@ export async function confirmResult(matchId) {
         .single();
 
     if (readError) return { ok: false, error: readError.message };
-    if (!match.league_id) return { ok: false, error: "Match has no associated league" };
+    if (!match.league_id) return { ok: false, error: `El partido #${matchId} no tiene una liga asociada. Borra el partido y créalo de nuevo.` };
+
+
+
+
+
+
+
+
     let team1Sets = 0;
     let team2Sets = 0;
     match.scores.forEach(score => {
@@ -75,10 +85,13 @@ export async function confirmResult(matchId) {
         winner: winner,
     }).eq("id", matchId);
 
-    if (error) return { ok: false, error: error.message };
+    if (error) return { ok: false, error: error.message };
+
     if (winner) {
         const winnerIds = winner === "team1" ? match.team1_ids : match.team2_ids;
-        const loserIds = winner === "team1" ? match.team2_ids : match.team1_ids;
+        const loserIds = winner === "team1" ? match.team2_ids : match.team1_ids;
+
+
         const allIds = [...winnerIds, ...loserIds];
         const { data: stats } = await admin.from("league_players")
             .select("*")
@@ -107,8 +120,46 @@ export async function confirmResult(matchId) {
 
 export async function deleteMatch(matchId) {
     const admin = getSupabaseAdmin();
+
+    
+    const { data: match, error: readError } = await admin
+        .from("matches")
+        .select("*")
+        .eq("id", matchId)
+        .single();
+
+    if (readError) return { ok: false, error: readError.message };
+
+    
+    if (match.validation?.status === "confirmed" && match.winner && match.league_id) {
+        const winnerIds = match.winner === "team1" ? match.team1_ids : match.team2_ids;
+        const loserIds = match.winner === "team1" ? match.team2_ids : match.team1_ids;
+        const allIds = [...winnerIds, ...loserIds];
+
+        const { data: stats } = await admin.from("league_players")
+            .select("*")
+            .eq("league_id", match.league_id)
+            .in("profile_id", allIds);
+
+        if (stats) {
+            for (const stat of stats) {
+                const isWinner = winnerIds.includes(stat.profile_id);
+                await admin.from("league_players")
+                    .update({
+                        matches: Math.max(0, stat.matches - 1),
+                        wins: Math.max(0, stat.wins - (isWinner ? 1 : 0)),
+                        losses: Math.max(0, stat.losses - (isWinner ? 0 : 1)),
+                    })
+                    .eq("league_id", match.league_id)
+                    .eq("profile_id", stat.profile_id);
+            }
+        }
+    }
+
+    
     const { error } = await admin.from("matches").delete().eq("id", matchId);
     if (error) return { ok: false, error: error.message };
+
     revalidatePath("/matches");
     revalidatePath("/home");
     return { ok: true };

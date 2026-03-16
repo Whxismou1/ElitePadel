@@ -16,10 +16,11 @@ export async function createTournament(t) {
         name: t.name,
         status: t.status ?? "Próximamente",
         status_color: t.statusColor ?? "bg-amber-100 text-amber-700",
-        start_date: t.startDate ?? "",
-        end_date: t.endDate ?? "",
+        start_date: t.startDate || "",
+        end_date: t.endDate || "",
         teams: t.teams ?? 0,
         max_teams: t.maxTeams ?? 8,
+        bracket: t.bracket ?? [],
     }).select("id").single();
 
     if (error) return { ok: false, error: error.message };
@@ -28,17 +29,19 @@ export async function createTournament(t) {
     return { ok: true, id: data.id };
 }
 
-export async function updateTournament({ id, name, status, statusColor, startDate, endDate, teams, maxTeams }) {
+export async function updateTournament({ id, name, status, statusColor, startDate, endDate, teams, maxTeams, bracket }) {
     const admin = getSupabaseAdmin();
-    const { error } = await admin.from("tournaments").update({
-        name,
-        status,
-        status_color: statusColor,
-        start_date: startDate,
-        end_date: endDate,
-        teams,
-        max_teams: maxTeams,
-    }).eq("id", id);
+    const updateData = {};
+    if (name !== undefined) updateData.name = name;
+    if (status !== undefined) updateData.status = status;
+    if (statusColor !== undefined) updateData.status_color = statusColor;
+    if (startDate !== undefined) updateData.start_date = startDate || "";
+    if (endDate !== undefined) updateData.end_date = endDate || "";
+    if (teams !== undefined) updateData.teams = teams;
+    if (maxTeams !== undefined) updateData.max_teams = maxTeams;
+    if (bracket !== undefined) updateData.bracket = bracket;
+
+    const { error } = await admin.from("tournaments").update(updateData).eq("id", id);
 
     if (error) return { ok: false, error: error.message };
     revalidatePath("/tournaments");
