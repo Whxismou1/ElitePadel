@@ -274,40 +274,42 @@ function PastMatchCard({ match, currentUser, onProposeResult, onConfirm, onDelet
       }`}>
       <CardContent className="py-4">
 
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3 min-w-0 flex-1">
-
-            <span className="text-sm font-semibold text-slate-800 truncate max-w-[120px]">
+        <div className="flex flex-col sm:flex-row justify-between gap-3">
+          {/* Equipos y Resultados */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <span className="text-sm font-semibold text-slate-800 break-words">
               {match.team1.join(" / ")}
             </span>
 
-            <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex items-center gap-1.5 shrink-0 bg-slate-50 border border-slate-100 px-2 py-1 rounded-lg">
               {hasScores ? (
                 match.scores.map((set, i) => (
                   <span
                     key={i}
-                    className="font-bold text-slate-900 tabular-nums text-sm bg-slate-100 rounded px-1.5 py-0.5"
+                    className="font-bold text-slate-900 tabular-nums text-sm bg-white border border-slate-200 shadow-sm rounded px-1.5 py-0.5"
                   >
                     {set}
                   </span>
                 ))
               ) : (
-                <span className="text-xs italic text-slate-400">Sin resultado</span>
+                <span className="text-xs italic text-slate-400 font-medium">VS</span>
               )}
             </div>
 
-            <span className="text-sm font-semibold text-slate-800 truncate max-w-[120px]">
+            <span className="text-sm font-semibold text-slate-800 break-words">
               {match.team2.join(" / ")}
             </span>
           </div>
 
-          <div className="flex items-center gap-3 text-xs text-slate-400 shrink-0">
-            <span className="flex items-center gap-1">
-              <Clock className="size-3.5" />{match.date}
-            </span>
-            <span className="flex items-center gap-1">
-              <MapPin className="size-3.5" />{match.court}
-            </span>
+          <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 text-xs text-slate-500 pt-2 sm:pt-0 border-t sm:border-0 border-slate-100 w-full sm:w-auto shrink-0">
+            <div className="flex items-center gap-3">
+              <span className="flex items-center gap-1">
+                <Clock className="size-3.5" />{match.date}
+              </span>
+              <span className="flex items-center gap-1">
+                <MapPin className="size-3.5" />{match.court}
+              </span>
+            </div>
             {canInteract && (
               <DeleteMatchDialog matchId={match.id} onDelete={onDelete} />
             )}
