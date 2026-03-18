@@ -615,10 +615,20 @@ export default function MatchesPage() {
                           <span className="flex items-center gap-1"><Calendar className="size-3.5" />{match.date} · {match.time}</span>
                           <span className="flex items-center gap-1"><MapPin className="size-3.5" />{match.court}</span>
                         </div>
-                        <button
-                          onClick={() => setFichaMatch(match)}
-                          className="text-xs font-bold text-[#13ec5b] hover:text-[#0eb846] transition-colors"
-                        >Ver ficha</button>
+                        <div className="flex items-center gap-2">
+                          {(inT1 || inT2 || currentUser?.role === "admin") && (
+                            <ResultDialog
+                              match={match}
+                              triggerLabel="Subir resultado"
+                              triggerVariant="outline"
+                              onSave={(scores) => proposeResult(match.id, scores, inT1 ? "team1" : "team2")}
+                            />
+                          )}
+                          <button
+                            onClick={() => setFichaMatch(match)}
+                            className="text-xs font-bold text-[#13ec5b] hover:text-[#0eb846] transition-colors"
+                          >Ver ficha</button>
+                        </div>
                       </div>
                     </CardContent>
                     </Card>
