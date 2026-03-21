@@ -64,6 +64,11 @@ export async function confirmResult(matchId) {
     if (readError) return { ok: false, error: readError.message };
     if (!match.league_id) return { ok: false, error: `El partido #${matchId} no tiene una liga asociada. Borra el partido y créalo de nuevo.` };
 
+    // Guard: prevent double-counting if already confirmed
+    if (match.validation?.status === "confirmed") {
+        return { ok: true };
+    }
+
 
 
 
